@@ -1,0 +1,54 @@
+pipeline {
+    agent any
+    
+     environment {
+        registry = "admin2222/myphp-app-may20"
+        registryCredential = '2987d730-2fdf-417c-ac33-555403393584'
+        dockerImage = ''
+    }
+     stages {
+         
+        stage('Cloning Git') {
+            steps {
+                checkout scmGit(branches: [[name: '*/master']], extensions: [], userRemoteConfigs: [[url: 'https://bitbucket.org/ananthkannan/phprepo']])
+            }
+        }
+        
+         // Building Docker images
+    stage('Building image') {
+      steps{
+        script {
+          dockerImage = docker.build registry
+         }
+        }
+       }
+       
+       // Uploading Docker images into Docker Hub
+    stage('Upload Image') {
+     steps{    
+         script {
+            docker.withRegistry( '', registryCredential ) {
+            dockerImage.push()
+            }
+        }
+      }
+    }
+    
+     // Stopping Docker containers for cleaner Docker run
+     stage('docker stop container') {
+         steps {
+            sh 'docker ps -f name=myPhpContainer -q | xargs --no-run-if-empty docker container stop'
+            sh 'docker container ls -a -fname=myPhpContainer -q | xargs -r docker container rm'
+         }
+       }
+    
+    // Running Docker container, make sure port 8096 is opened in 
+    stage('Docker Run') {
+     steps{
+         script {
+            dockerImage.run("-p 8086:80 --rm --name myPhpContainer")
+         }
+      }
+    }
+      }
+    }  
